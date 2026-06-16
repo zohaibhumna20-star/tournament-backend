@@ -29,7 +29,7 @@ const app = express();
 connectDB()
   .then(() => {
     console.log("✅ Database connection successful");
-    startNotificationCron();
+    //startNotificationCron();
   })
   .catch((err) => console.error("❌ Database connection error:", err));
 
