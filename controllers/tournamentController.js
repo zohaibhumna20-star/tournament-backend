@@ -1,6 +1,6 @@
 const Tournament      = require("../models/Tournament");
 const JoinTournament  = require("../models/JoinTournament");
-const TournamentResult = require("../models/TournamentResult");
+const TournamentResult = require("../models/tournamentResult");
 const User            = require("../models/User");
 const mongoose        = require("mongoose");
 const AuditLog        = require("../models/AuditLog");
