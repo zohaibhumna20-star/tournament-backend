@@ -147,8 +147,11 @@ const validateUserId = (req, res, next) => {
 //  AUTH ROUTES
 // ════════════════════════════════════════════════════════════════════════════
 
-router.post("/signup", authLimiter, signupUser);
-
+router.post("/signup", (req, res, next) => {
+  console.log("🔥🔥 SIGNUP ROUTE HIT");
+  console.log("🔥 BODY:", req.body);
+  next();
+}, authLimiter, signupUser);
 router.post("/login", loginLimiter, validateLogin, loginUser);
 
 router.post("/logout", protect, logout);

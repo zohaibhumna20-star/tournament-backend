@@ -12,6 +12,8 @@ function generateReferralCode() {
 // body: { username, email, freefireId, password, confirmPassword }
 // ════════════════════════════════════════════════════════════════════════════
 exports.signupUser = async (req, res) => {
+  console.log("🚀🚀 signupUser CONTROLLER HIT");
+  console.log("📦 REQUEST BODY:", req.body);
   try {
     const { username, email, freefireId, password, confirmPassword } = req.body;
 
@@ -74,6 +76,8 @@ exports.signupUser = async (req, res) => {
 
   } catch (error) {
     console.error("signupUser error:", error);
+    console.error(error);
+  console.error(error.stack);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
