@@ -7,7 +7,7 @@ const multer   = require("multer");
 const tournamentController = require("../controllers/tournamentController");
 const Tournament       = require("../models/Tournament");
 const JoinTournament   = require("../models/JoinTournament");
-const TournamentResult = require("../models/TournamentResult");
+const TournamentResult = require("../models/tournamentResult");
 const User             = require("../models/User");
 const Transaction      = require("../models/Transaction");
 
