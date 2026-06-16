@@ -1,8 +1,8 @@
-const express  = require("express");
+const express   = require("express");
 const connectDB = require("./db");
-const cors     = require("cors");
-const path     = require("path");
-const helmet   = require("helmet");
+const cors      = require("cors");
+const path      = require("path");
+const helmet    = require("helmet");
 const rateLimit = require("express-rate-limit");
 
 const userRoutes       = require("./routes/userRoutes");
@@ -16,12 +16,11 @@ const adminAuthRoutes  = require("./routes/admin.auth.routes");
 const dashboardRoutes  = require("./routes/dashboard.routes");
 const supportRoute     = require("./routes/supportRoute");
 
-const { protect }        = require("./middleware/authMiddleware");
-const requestGuard       = require("./middleware/requestGuard");
-//const { checkFraud }     = require("./middleware/fraudDetection");
-//const { validateRequest, schemas } = require("./middleware/validateRequest");
+const { protect }  = require("./middleware/authMiddleware");
+const requestGuard = require("./middleware/requestGuard");
 
-const { startNotificationCron } = require("./cron/notificationCron");
+// ✅ FIX #1: cron import REMOVED from top-level
+// Do NOT require notificationCron here — it was blocking event loop on startup
 
 const app = express();
 
@@ -29,7 +28,18 @@ const app = express();
 connectDB()
   .then(() => {
     console.log("✅ Database connection successful");
-    //startNotificationCron();
+    // ✅ FIX: cron sirf DB connect hone ke BAAD start karo
+    // Aur sirf production mein
+    if (process.env.NODE_ENV === "production") {
+      try {
+        const { startNotificationCron } = require("./cron/notificationCron");
+        startNotificationCron();
+        console.log("✅ Cron started");
+      } catch (e) {
+        console.error("❌ Cron failed to start:", e.message);
+        // ✅ Cron fail hone par server crash nahi hoga
+      }
+    }
   })
   .catch((err) => console.error("❌ Database connection error:", err));
 
@@ -53,9 +63,19 @@ app.use((req, res, next) => {
 
 // ─── SECURITY ─────────────────────────────────────────────────────────────
 app.use(helmet());
-app.use(express.json({ limit: "10kb" })); // ✅ payload size limit
+app.use(express.json({ limit: "10kb" }));
 
-// ✅ Global rate limiter
+// ─── REQUEST LOGGER ───────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  req._startTime = Date.now();
+  console.log(`\n➡️ [${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  res.on("finish", () => {
+    console.log(`✅ ${req.method} ${req.originalUrl} → ${res.statusCode} (${Date.now() - req._startTime}ms)`);
+  });
+  next();
+});
+
+// ─── RATE LIMITERS ────────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max:      100,
@@ -63,49 +83,35 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// ✅ Stricter limiter for wallet endpoints
 const walletLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max:      20,
   message:  { success: false, message: "Too many wallet requests" },
 });
 
-// ✅ Stricter limiter for join endpoints
 const joinLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max:      10,
   message:  { success: false, message: "Too many join requests" },
 });
 
-// ─── LOGGER ───────────────────────────────────────────────────────────────
-app.use((req, res, next) => {
-  console.log(`➡️ [${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
-
-// ✅ Device tracking (soft — logs only, doesn't block)
-//app.use(protect.length ? deviceTrack : deviceTrack);
-
 // ─── ROUTES ───────────────────────────────────────────────────────────────
-app.use("/api/v1/users",       userRoutes);
-app.use("/api/v1/admin",       require("./routes/adminRoutes"));
-app.use("/api/v1",             tournamentRoutes);
+app.use("/api/v1/users",   userRoutes);
+app.use("/api/v1/admin",   require("./routes/adminRoutes"));
 
-// ✅ Wallet: protect + rate limit + replay guard + fraud detection
+// ✅ FIX #2: tournamentRoutes sirf EK baar mount karo
+app.use("/api/v1",         tournamentRoutes);
+
+// ✅ FIX #3: /api/v1/join alag se mount NAHI karo — tournamentRoutes mein
+// /join-tournament route already exist karta hai protect ke saath
+// Duplicate mount hata diya — yahi 502 ka root cause tha
+
 app.use(
   "/api/v1/wallet",
   protect,
   walletLimiter,
   requestGuard,
   walletRoutes
-);
-
-// ✅ Join: rate limit + replay guard
-app.use(
-  "/api/v1/join",
-  joinLimiter,
-  requestGuard,
-  tournamentRoutes   // or dedicated joinRoutes if separated
 );
 
 app.use("/api/v1/match",       matchRoutes);
@@ -121,7 +127,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ─── 404 ──────────────────────────────────────────────────────────────────
 app.use((req, res) => {
-  console.warn(`⚠️ 404 Not Found: ${req.method} ${req.url}`);
+  console.warn(`⚠️ 404: ${req.method} ${req.url}`);
   res.status(404).json({ message: "Route not found" });
 });
 
@@ -138,10 +144,10 @@ app.listen(PORT, () => {
   console.log(`🌐 Environment: ${process.env.NODE_ENV || "development"}`);
 });
 
-process.on("unhandledRejection", (reason) => {
-  console.error("❌ Unhandled Rejection:", reason);
-});
 process.on("uncaughtException", (err) => {
-  console.error("❌ Uncaught Exception:", err);
-  process.exit(1);
+  console.error("💥 UNCAUGHT EXCEPTION:", err.stack || err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("💥 UNHANDLED REJECTION:", reason);
 });
