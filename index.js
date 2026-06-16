@@ -115,7 +115,7 @@ app.use(
 );
 
 app.use("/api/v1/match",       matchRoutes);
-app.use("/api/v1",             apiRoutes);
+app.use("/api/v1/match-api",   apiRoutes);
 app.use("/api/v1/deposit",     depositRoutes);
 app.use("/api/v1/withdraw",    withdrawRoutes);
 app.use("/api/v1/admin/user",  adminAuthRoutes);
