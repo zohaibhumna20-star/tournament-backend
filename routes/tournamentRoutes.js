@@ -267,13 +267,7 @@ router.post("/tournaments/:id/result", async (req, res) => {
 
     const allParticipants = await JoinTournament.find({ tournamentID: tournamentId });
 
-    // Update totalMatches for all participants
-    for (const p of allParticipants) {
-      const uid = p.userID?.toString();
-      if (!uid) continue;
-      await User.findByIdAndUpdate(uid, { $inc: { totalMatches: 1 } }).catch(() => {});
-    }
-
+    
     // Update winners wallet + stars/level + transaction
     for (const winner of winners) {
       if (!winner.userId) continue;

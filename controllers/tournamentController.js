@@ -315,6 +315,13 @@ exports.joinTournament = async (req, res) => {
     });
     await join.save({ session });
 
+    // ✅ ADD: user ne join kiya = 1 match count
+    await User.findByIdAndUpdate(
+      userId,
+      { $inc: { totalMatches: 1 } },
+      { session }
+    );
+
     requestedSeats.forEach(seatNumber => {
       tournament.joinedUsers.push({ userId, seatNumber });
     });
@@ -516,21 +523,6 @@ exports.submitResult = async (req, res) => {
     session.startTransaction();
 
     try {
-      // ✅ FIX: Update ALL participants — totalMatches + stars/level
-      for (const participant of participants) {
-        const uid = participant.userID.toString().trim();
-        if (!uid) continue;
-
-        let pUser = await User.findById(uid).session(session).catch(() => null);
-        if (!pUser) {
-          // Try string match (some userIDs stored as plain strings)
-          pUser = await User.findOne({ _id: uid }).session(session).catch(() => null);
-        }
-        if (!pUser) continue;
-
-        pUser.totalMatches = (pUser.totalMatches || 0) + 1;
-        await pUser.save({ session });
-      }
 
       // ✅ FIX: Update winners — winning balance + coins + stars/level + transaction
       for (const w of winners) {
